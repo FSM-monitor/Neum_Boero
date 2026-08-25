@@ -228,7 +228,7 @@
   // ============================================================
   // CONFIGURACIÓN DE LA API (cambiar según corresponda)
   // ============================================================
-  const API_BASE_URL = "https://script.google.com/macros/s/AKfycbznXSuS2DZa-N2dXtPh5PtlZgAP0H_9an2rFPnEmVOd2G-lDevDXo-Ibxn4M9Pfvr58Eg/exec";
+  const API_BASE_URL = "https://script.google.com/macros/s/AKfycbyjWg8hiPqdaOfqZrvDuqHgZSbkJHzeoVq9sAeWDJY7-AfHD838QqwovIEo-FMjaIcSyA/exec";
 
   // ============================================================
   // CONSTANTES DE FUNCIONAMIENTO
@@ -512,6 +512,7 @@
               <tr>
                 <th class="px-4 py-3 text-left font-medium">Fecha</th>
                 <th class="px-4 py-3 text-left font-medium">Comprobante</th>
+                <th class="px-4 py-3 text-left font-medium">Cliente</th>
                 <th class="px-4 py-3 text-right font-medium">Cantidad (unidades)</th>
               </tr>
             </thead>
@@ -529,6 +530,7 @@
                   <tr class="hover:bg-gray-900/30">
                     <td class="px-4 py-3 text-gray-400 font-medium">${fechaStr}</td>
                     <td class="px-4 py-3 text-gray-300 font-mono">${m.comprobante || 'Sin comprobante'}</td>
+                    <td class="px-4 py-3 text-gray-300">${m.cliente || ''}</td>
                     <td class="px-4 py-3 text-right">
                       <span class="inline-flex items-center ${isPositive ? 'text-green-400' : 'text-red-400'} font-bold">
                         ${isPositive ? '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>' : '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>'}
