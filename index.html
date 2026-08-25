@@ -147,6 +147,13 @@
       border-radius: 20px;
       font-size: 0.85rem;
     }
+
+    /* Scroll personalizado para la tabla de historial */
+    .history-scroll {
+      max-height: 280px;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
   </style>
 </head>
 <body class="p-4 md:p-8 custom-scroll">
@@ -400,8 +407,9 @@
       const safeId = item.codigo.toString().replace(/[^a-zA-Z0-9]/g, '_');
       const row = document.createElement('tr');
       row.className = 'hover:bg-gray-900/30 transition-colors cursor-pointer group';
-      row.onclick = () => toggleDetail(safeId, item.codigo);
-
+      // Pasamos el depósito al toggleDetail
+      row.onclick = () => toggleDetail(safeId, item.codigo, depot);
+     
       row.innerHTML = `
         <td class="px-6 py-5">
           <div class="font-mono text-sm font-semibold text-white bg-black/30 px-3 py-1.5 rounded-lg inline-block">
@@ -445,9 +453,9 @@
   }
 
   // ============================================================
-  // TOGGLE DETALLE (historial)
+  // TOGGLE DETALLE (historial) - CON DEPÓSITO
   // ============================================================
-  async function toggleDetail(safeId, codigoReal) {
+  async function toggleDetail(safeId, codigoReal, deposito) {
     const detailRow = document.getElementById(`detail-${safeId}`);
     const contentBox = document.getElementById(`content-${safeId}`);
     const icon = document.getElementById(`icon-${safeId}`);
@@ -458,14 +466,15 @@
 
     if (isOpening && contentBox.dataset.loaded !== 'true') {
       try {
-        const url = `${API_BASE_URL}?codigo=${encodeURIComponent(codigoReal)}&t=${Date.now()}`;
+        // Incluimos el depósito en la URL
+        const url = `${API_BASE_URL}?codigo=${encodeURIComponent(codigoReal)}&deposito=${encodeURIComponent(deposito)}&t=${Date.now()}`;
         const response = await fetch(url);
         const text = await response.text();
         let movimientos;
         try { movimientos = JSON.parse(text); } catch {
           throw new Error('La API no devolvió JSON válido para el historial');
         }
-        renderHistory(contentBox, movimientos, codigoReal);
+        renderHistory(contentBox, movimientos, codigoReal, deposito);
         contentBox.dataset.loaded = 'true';
       } catch (err) {
         contentBox.innerHTML = `
@@ -482,7 +491,10 @@
     }
   }
 
-  function renderHistory(container, movs, codigo) {
+  // ============================================================
+  // RENDER HISTORIAL (con scroll y depósito)
+  // ============================================================
+  function renderHistory(container, movs, codigo, deposito) {
     if (!movs || movs.length === 0) {
       container.innerHTML = `
         <div class="p-8 text-center">
@@ -492,17 +504,21 @@
             </svg>
           </div>
           <p class="text-gray-500 font-medium">Sin movimientos registrados.</p>
-          <p class="text-gray-600 text-sm mt-2">No hay historial disponible para este artículo.</p>
+          <p class="text-gray-600 text-sm mt-2">No hay historial disponible para este artículo en este depósito.</p>
         </div>`;
       return;
     }
 
-    container.innerHTML = `
+    // Construimos el contenido con scroll
+    const scrollWrapper = document.createElement('div');
+    scrollWrapper.className = 'history-scroll custom-scroll';
+
+    let tableHTML = `
       <div class="p-1">
         <div class="flex items-center justify-between p-4 border-b border-gray-800">
           <div>
             <h3 class="text-lg font-semibold text-white">Historial de Movimientos</h3>
-            <p class="text-xs text-gray-500 mt-1">Artículo: ${codigo}</p>
+            <p class="text-xs text-gray-500 mt-1">Artículo: ${codigo} · Depósito: ${deposito}</p>
           </div>
           <span class="text-xs text-gray-500 bg-black/40 px-3 py-1 rounded-full">${movs.length} registros</span>
         </div>
@@ -513,7 +529,7 @@
                 <th class="px-4 py-3 text-left font-medium">Fecha</th>
                 <th class="px-4 py-3 text-left font-medium">Comprobante</th>
                 <th class="px-4 py-3 text-left font-medium">Cliente</th>
-                <th class="px-4 py-3 text-right font-medium">Cantidad (unidades)</th>
+                <th class="px-4 py-3 text-right font-medium">Cantidad</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-800/50">
@@ -533,7 +549,6 @@
                     <td class="px-4 py-3 text-gray-300">${m.cliente || ''}</td>
                     <td class="px-4 py-3 text-right">
                       <span class="inline-flex items-center ${isPositive ? 'text-green-400' : 'text-red-400'} font-bold">
-                        ${isPositive ? '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>' : '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>'}
                         ${isPositive ? '+' : ''}${m.cantidad}
                       </span>
                     </td>
@@ -543,7 +558,12 @@
             </tbody>
           </table>
         </div>
-      </div>`;
+      </div>
+    `;
+
+    scrollWrapper.innerHTML = tableHTML;
+    container.innerHTML = '';
+    container.appendChild(scrollWrapper);
   }
 
   // ============================================================
@@ -586,7 +606,6 @@
     emptyState.classList.add('hidden');
 
     try {
-      // 1) Intentar caché válida (si no se fuerza refresco)
       if (!forceRefresh) {
         const cached = getCache();
         if (cached) {
@@ -599,7 +618,6 @@
         }
       }
 
-      // 2) Fetch a la API
       const url = `${API_BASE_URL}?t=${Date.now()}`;
       console.log('🔍 URL de la API:', url);
 
@@ -632,7 +650,6 @@
     } catch (err) {
       console.error('Error en loadData:', err);
 
-      // Intentar usar caché expirada
       const expiredCache = getCache(true);
       if (expiredCache) {
         rawData = expiredCache;
@@ -646,7 +663,6 @@
       loader.classList.add('hidden');
       isLoading = false;
 
-      // Cooldown
       if (cooldownTimer) clearTimeout(cooldownTimer);
       isCooldown = true;
       updateButtonState('cooldown');
@@ -669,8 +685,6 @@
     }
 
     document.getElementById('currentYear').textContent = new Date().getFullYear();
-
-    // Carga inicial (usa caché si es válida)
     loadData(false);
   });
 
