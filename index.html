@@ -131,7 +131,6 @@
       background-color: rgba(30, 30, 30, 0.5);
     }
 
-    /* Fila de grupo (depósito) */
     .group-header td {
       background-color: rgba(220, 38, 38, 0.08);
       border-top: 2px solid var(--accent);
@@ -148,7 +147,6 @@
       font-size: 0.85rem;
     }
 
-    /* Scroll personalizado para la tabla de historial */
     .history-scroll {
       max-height: 280px;
       overflow-y: auto;
@@ -238,11 +236,11 @@
   const API_BASE_URL = "https://script.google.com/macros/s/AKfycbwU0_rz5Qii6Bkv7DRgP5J1qy0Ea8n7fDB-xd4nL79h7Sunzov3Aah7kag8aqlnn0IiMg/exec";
 
   // ============================================================
-  // CONSTANTES DE FUNCIONAMIENTO
+  // CONSTANTES
   // ============================================================
-  const TTL = 10 * 60 * 1000;          // 10 minutos
-  const COOLDOWN = 10 * 1000;          // 10 segundos
-  const CACHE_KEY = 'stockCache_all';  // única caché para todos los datos
+  const TTL = 10 * 60 * 1000;
+  const COOLDOWN = 10 * 1000;
+  const CACHE_KEY = 'stockCache_all';
 
   // ============================================================
   // ESTADO
@@ -255,7 +253,7 @@
   let subtitleTimeout = null;
 
   // ============================================================
-  // CACHÉ (localStorage)
+  // CACHÉ
   // ============================================================
   function getCache(ignoreTTL = false) {
     const stored = localStorage.getItem(CACHE_KEY);
@@ -279,7 +277,7 @@
   }
 
   // ============================================================
-  // CONTROL DEL BOTÓN ACTUALIZAR
+  // UI HELPERS
   // ============================================================
   function updateButtonState(state) {
     if (!refreshBtn) return;
@@ -301,9 +299,6 @@
     }
   }
 
-  // ============================================================
-  // NOTIFICACIONES
-  // ============================================================
   function showError(message) {
     const notification = document.createElement('div');
     notification.className = 'fixed top-4 right-4 glass p-4 rounded-xl border-l-4 border-red-600 z-50';
@@ -344,9 +339,6 @@
     setTimeout(() => notification.remove(), 5000);
   }
 
-  // ============================================================
-  // SUBTÍTULO (color para indicar caché)
-  // ============================================================
   function setSubtitleStatus(fromCache) {
     const subtitle = document.getElementById('subtitleStatus');
     if (!subtitle) return;
@@ -366,7 +358,7 @@
   }
 
   // ============================================================
-  // RENDERIZADO DE TABLA (con agrupación por depósito)
+  // RENDERIZADO PRINCIPAL
   // ============================================================
   function renderTable(data, fromCache = false) {
     const body = document.getElementById('tableBody');
@@ -381,7 +373,6 @@
 
     setSubtitleStatus(fromCache);
 
-    // Ordenar: por depósito y luego por código
     const sorted = [...data].sort((a, b) => {
       const depotA = a.deposito || '';
       const depotB = b.deposito || '';
@@ -395,7 +386,6 @@
     sorted.forEach((item) => {
       const depot = item.deposito || 'SIN DEPÓSITO';
 
-      // Si cambia el depósito, insertar fila de grupo
       if (depot !== currentDepot) {
         currentDepot = depot;
         const groupRow = document.createElement('tr');
@@ -404,10 +394,10 @@
         body.appendChild(groupRow);
       }
 
-      const safeId = item.codigo.toString().replace(/[^a-zA-Z0-9]/g, '_');
+      // ID único por código + depósito
+      const safeId = `${item.codigo}_${depot}`.replace(/[^a-zA-Z0-9_]/g, '_');
       const row = document.createElement('tr');
       row.className = 'hover:bg-gray-900/30 transition-colors cursor-pointer group';
-      // Pasamos el depósito al toggleDetail
       row.onclick = () => toggleDetail(safeId, item.codigo, depot);
      
       row.innerHTML = `
@@ -434,7 +424,6 @@
       `;
       body.appendChild(row);
 
-      // Fila de detalle (historial)
       const detailRow = document.createElement('tr');
       detailRow.id = `detail-${safeId}`;
       detailRow.className = 'hidden bg-black/20';
@@ -453,7 +442,7 @@
   }
 
   // ============================================================
-  // TOGGLE DETALLE (historial) - CON DEPÓSITO
+  // TOGGLE DETALLE (con depósito)
   // ============================================================
   async function toggleDetail(safeId, codigoReal, deposito) {
     const detailRow = document.getElementById(`detail-${safeId}`);
@@ -466,7 +455,6 @@
 
     if (isOpening && contentBox.dataset.loaded !== 'true') {
       try {
-        // Incluimos el depósito en la URL
         const url = `${API_BASE_URL}?codigo=${encodeURIComponent(codigoReal)}&deposito=${encodeURIComponent(deposito)}&t=${Date.now()}`;
         const response = await fetch(url);
         const text = await response.text();
@@ -492,7 +480,7 @@
   }
 
   // ============================================================
-  // RENDER HISTORIAL (con scroll y depósito)
+  // RENDER HISTORIAL (con scroll)
   // ============================================================
   function renderHistory(container, movs, codigo, deposito) {
     if (!movs || movs.length === 0) {
@@ -504,12 +492,11 @@
             </svg>
           </div>
           <p class="text-gray-500 font-medium">Sin movimientos registrados.</p>
-          <p class="text-gray-600 text-sm mt-2">No hay historial disponible para este artículo en este depósito.</p>
+          <p class="text-gray-600 text-sm mt-2">No hay historial para este artículo en el depósito seleccionado.</p>
         </div>`;
       return;
     }
 
-    // Construimos el contenido con scroll
     const scrollWrapper = document.createElement('div');
     scrollWrapper.className = 'history-scroll custom-scroll';
 
@@ -567,7 +554,7 @@
   }
 
   // ============================================================
-  // FILTRO CON DEBOUNCE
+  // FILTRO
   // ============================================================
   function debounce(fn, delay) {
     let timer = null;
@@ -590,7 +577,7 @@
   window.filterData = debounce(performFilter, 300);
 
   // ============================================================
-  // CARGA PRINCIPAL DE DATOS
+  // CARGA PRINCIPAL
   // ============================================================
   async function loadData(forceRefresh = false) {
     if (isLoading || isCooldown) return;
@@ -619,8 +606,6 @@
       }
 
       const url = `${API_BASE_URL}?t=${Date.now()}`;
-      console.log('🔍 URL de la API:', url);
-
       const response = await fetch(url, {
         mode: 'cors',
         headers: { 'Accept': 'application/json' }
@@ -688,7 +673,6 @@
     loadData(false);
   });
 
-  // Exponer funciones globales
   window.loadData = loadData;
   window.filterData = window.filterData;
   window.toggleDetail = toggleDetail;
