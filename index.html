@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Stock</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0a0a;
+      --card-dark: #111111;
+      --accent: #dc2626;
+      --accent-hover: #ef4444;
+      --text-primary: #f5f5f5;
+      --text-secondary: #a3a3a3;
+      --border-color: #262626;
+      --success: #10b981;
+      --error: #dc2626;
+    }
+    
+    * {
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+    
+    .glass {
+      background: rgba(17, 17, 17, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+    }
+    
+    .loader {
+      border-top-color: var(--accent);
+      animation: spinner 1s linear infinite;
+    }
+    
+    @keyframes spinner {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 10px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #444;
+    }
+    
+    .expanded-detail {
+      animation: slideDown 0.3s ease-out forwards;
+    }
+    
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .hover-glow:hover {
+      box-shadow: 0 0 15px rgba(220, 38, 38, 0.2);
+    }
+    
+    .accent-line {
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      margin-top: 8px;
+      width: 80px;
+    }
+    
+    .premium-input {
+      background-color: rgba(30, 30, 30, 0.7);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+    }
+    .premium-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+    }
+    
+    .premium-btn {
+      background-color: var(--accent);
+      color: white;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .premium-btn:hover {
+      background-color: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+    .premium-btn:active {
+      transform: translateY(0);
+    }
+    
+    .stock-badge {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: var(--accent);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    
+    .premium-table th {
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .premium-table tr {
+      border-bottom: 1px solid rgba(38, 38, 38, 0.5);
+    }
+    .premium-table tr:hover {
+      background-color: rgba(30, 30, 30, 0.5);
+    }
+
+    /* Fila de grupo (depósito) */
+    .group-header td {
+      background-color: rgba(220, 38, 38, 0.08);
+      border-top: 2px solid var(--accent);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 16px;
+      font-weight: 700;
+      color: #e5e5e5;
+      letter-spacing: 0.03em;
+    }
+    .group-header td span {
+      background: rgba(220, 38, 38, 0.15);
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8 custom-scroll">
+
+<div class="max-w-6xl mx-auto">
+  <!-- Header -->
+  <div class="glass rounded-2xl p-6 mb-8 hover-glow">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div>
+        <div class="flex items-center space-x-3">
+          <div>
+            <h1 class="text-3xl font-bold tracking-tight text-white">Dashboard Stock</h1>
+            <div class="accent-line"></div>
+          </div>
+        </div>
+        <p id="subtitleStatus" class="text-gray-400 text-sm mt-2 font-medium">• Control de Stock en Tiempo Real •</p>
+      </div>
+      
+      <div class="flex flex-1 max-w-xl gap-3">
+        <div class="relative flex-1">
+          <input type="text" id="searchInput" onkeyup="filterData()" 
+                 placeholder="Filtrar por código, descripción o depósito..." 
+                 class="w-full premium-input rounded-xl py-3 px-4 placeholder-gray-500 font-medium shadow-inner">
+          <div class="absolute right-3 top-3 text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+        <button onclick="loadData(true)" class="premium-btn font-bold px-6 py-3 rounded-xl shadow-lg">
+          Actualizar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="glass rounded-2xl overflow-hidden shadow-2xl hover-glow">
+    <div class="overflow-x-auto">
+      <table class="min-w-full premium-table text-left">
+        <thead class="bg-black/30">
+          <tr>
+            <th class="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Código</th>
+            <th class="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Descripción</th>
+            <th class="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Depósito</th>
+            <th class="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Stock</th>
+            <th class="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Detalle</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody" class="divide-y divide-gray-800"></tbody>
+      </table>
+    </div>
+    
+    <!-- Loader -->
+    <div id="loader" class="hidden flex flex-col justify-center items-center p-20 gap-4">
+      <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-800 h-12 w-12"></div>
+      <p class="text-gray-500 font-medium animate-pulse">Sincronizando datos...</p>
+    </div>
+
+    <!-- Estado vacío -->
+    <div id="emptyState" class="hidden p-20 text-center">
+      <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-black to-gray-900 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+        </svg>
+      </div>
+      <p class="text-gray-500 text-lg font-medium">No se encontraron artículos con existencia.</p>
+      <p class="text-gray-600 text-sm mt-2">Intente actualizar la búsqueda o verifique los filtros aplicados.</p>
+    </div>
+  </div>
+  
+  <!-- Footer -->
+  <div class="mt-8 text-center text-gray-600 text-sm">
+    <p>Dashboard Stock • FSM • <span id="currentYear"></span></p>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  // CONFIGURACIÓN DE LA API (cambiar según corresponda)
+  // ============================================================
+  const API_BASE_URL = "https://script.google.com/macros/s/AKfycbznXSuS2DZa-N2dXtPh5PtlZgAP0H_9an2rFPnEmVOd2G-lDevDXo-Ibxn4M9Pfvr58Eg/exec";  // <-- REEMPLAZAR CON LA URL REAL
+
+  // ============================================================
+  // CONSTANTES DE FUNCIONAMIENTO
+  // ============================================================
+  const TTL = 10 * 60 * 1000;          // 10 minutos
+  const COOLDOWN = 10 * 1000;          // 10 segundos
+  const CACHE_KEY = 'stockCache_all';  // única caché para todos los datos
+
+  // ============================================================
+  // ESTADO
+  // ============================================================
+  let rawData = [];
+  let isLoading = false;
+  let isCooldown = false;
+  let cooldownTimer = null;
+  let refreshBtn = null;
+  let subtitleTimeout = null;
+
+  // ============================================================
+  // CACHÉ (localStorage)
+  // ============================================================
+  function getCache(ignoreTTL = false) {
+    const stored = localStorage.getItem(CACHE_KEY);
+    if (!stored) return null;
+    try {
+      const parsed = JSON.parse(stored);
+      if (!parsed || !parsed.data) return null;
+      if (ignoreTTL) return parsed.data;
+      const now = Date.now();
+      if (now - parsed.timestamp < TTL) return parsed.data;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  function setCache(data) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
+    } catch {}
+  }
+
+  // ============================================================
+  // CONTROL DEL BOTÓN ACTUALIZAR
+  // ============================================================
+  function updateButtonState(state) {
+    if (!refreshBtn) return;
+    switch (state) {
+      case 'loading':
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Cargando...';
+        refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        break;
+      case 'cooldown':
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Espere...';
+        refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        break;
+      default:
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Actualizar';
+        refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  }
+
+  // ============================================================
+  // NOTIFICACIONES
+  // ============================================================
+  function showError(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 glass p-4 rounded-xl border-l-4 border-red-600 z-50';
+    notification.innerHTML = `
+      <div class="flex items-center">
+        <div class="rounded-full bg-red-900/20 p-2 mr-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <p class="font-medium text-white">Error</p>
+          <p class="text-sm text-gray-400">${message}</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
+  }
+
+  function showWarning(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 glass p-4 rounded-xl border-l-4 border-yellow-500 z-50';
+    notification.innerHTML = `
+      <div class="flex items-center">
+        <div class="rounded-full bg-yellow-900/20 p-2 mr-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div>
+          <p class="font-medium text-white">Advertencia</p>
+          <p class="text-sm text-gray-400">${message}</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
+  }
+
+  // ============================================================
+  // SUBTÍTULO (color para indicar caché)
+  // ============================================================
+  function setSubtitleStatus(fromCache) {
+    const subtitle = document.getElementById('subtitleStatus');
+    if (!subtitle) return;
+    if (subtitleTimeout) {
+      clearTimeout(subtitleTimeout);
+      subtitleTimeout = null;
+    }
+    if (fromCache) {
+      subtitle.className = 'text-sm mt-2 font-medium text-red-400';
+      subtitleTimeout = setTimeout(() => {
+        subtitle.className = 'text-gray-400 text-sm mt-2 font-medium';
+        subtitleTimeout = null;
+      }, 5000);
+    } else {
+      subtitle.className = 'text-gray-400 text-sm mt-2 font-medium';
+    }
+  }
+
+  // ============================================================
+  // RENDERIZADO DE TABLA (con agrupación por depósito)
+  // ============================================================
+  function renderTable(data, fromCache = false) {
+    const body = document.getElementById('tableBody');
+    const emptyState = document.getElementById('emptyState');
+    body.innerHTML = '';
+
+    if (!data || data.length === 0) {
+      emptyState.classList.remove('hidden');
+      return;
+    }
+    emptyState.classList.add('hidden');
+
+    setSubtitleStatus(fromCache);
+
+    // Ordenar: por depósito y luego por código
+    const sorted = [...data].sort((a, b) => {
+      const depotA = a.deposito || '';
+      const depotB = b.deposito || '';
+      if (depotA < depotB) return -1;
+      if (depotA > depotB) return 1;
+      return (a.codigo || '').localeCompare(b.codigo || '');
+    });
+
+    let currentDepot = null;
+
+    sorted.forEach((item) => {
+      const depot = item.deposito || 'SIN DEPÓSITO';
+
+      // Si cambia el depósito, insertar fila de grupo
+      if (depot !== currentDepot) {
+        currentDepot = depot;
+        const groupRow = document.createElement('tr');
+        groupRow.className = 'group-header';
+        groupRow.innerHTML = `<td colspan="5"><span>${depot}</span></td>`;
+        body.appendChild(groupRow);
+      }
+
+      const safeId = item.codigo.toString().replace(/[^a-zA-Z0-9]/g, '_');
+      const row = document.createElement('tr');
+      row.className = 'hover:bg-gray-900/30 transition-colors cursor-pointer group';
+      row.onclick = () => toggleDetail(safeId, item.codigo);
+
+      row.innerHTML = `
+        <td class="px-6 py-5">
+          <div class="font-mono text-sm font-semibold text-white bg-black/30 px-3 py-1.5 rounded-lg inline-block">
+            ${item.codigo}
+          </div>
+        </td>
+        <td class="px-6 py-5 text-sm text-gray-300 font-medium">${item.descripcion}</td>
+        <td class="px-6 py-5 text-sm text-gray-400">${depot}</td>
+        <td class="px-6 py-5 text-right">
+          <div class="flex items-center justify-end space-x-2">
+            <span class="font-bold text-xl text-white">${item.stock}</span>
+            <span class="stock-badge text-xs">unidades</span>
+          </div>
+        </td>
+        <td class="px-6 py-5 text-center">
+          <span class="text-gray-600 group-hover:text-red-500 transition inline-block transform group-hover:scale-110" id="icon-${safeId}">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </span>
+        </td>
+      `;
+      body.appendChild(row);
+
+      // Fila de detalle (historial)
+      const detailRow = document.createElement('tr');
+      detailRow.id = `detail-${safeId}`;
+      detailRow.className = 'hidden bg-black/20';
+      detailRow.innerHTML = `
+        <td colspan="5" class="px-6 py-6">
+          <div id="content-${safeId}" class="expanded-detail border border-gray-800 rounded-xl bg-black/40 overflow-hidden">
+            <div class="p-8 text-center text-gray-500">
+              <div class="loader ease-linear rounded-full border-2 border-t-2 border-gray-700 h-6 w-6 mx-auto mb-2"></div>
+              <p class="text-sm font-medium">Cargando historial de movimientos...</p>
+            </div>
+          </div>
+        </td>
+      `;
+      body.appendChild(detailRow);
+    });
+  }
+
+  // ============================================================
+  // TOGGLE DETALLE (historial)
+  // ============================================================
+  async function toggleDetail(safeId, codigoReal) {
+    const detailRow = document.getElementById(`detail-${safeId}`);
+    const contentBox = document.getElementById(`content-${safeId}`);
+    const icon = document.getElementById(`icon-${safeId}`);
+    const isOpening = detailRow.classList.contains('hidden');
+
+    detailRow.classList.toggle('hidden');
+    icon.style.transform = isOpening ? 'rotate(180deg)' : 'rotate(0deg)';
+
+    if (isOpening && contentBox.dataset.loaded !== 'true') {
+      try {
+        const url = `${API_BASE_URL}?codigo=${encodeURIComponent(codigoReal)}&t=${Date.now()}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        let movimientos;
+        try { movimientos = JSON.parse(text); } catch {
+          throw new Error('La API no devolvió JSON válido para el historial');
+        }
+        renderHistory(contentBox, movimientos, codigoReal);
+        contentBox.dataset.loaded = 'true';
+      } catch (err) {
+        contentBox.innerHTML = `
+          <div class="p-6 text-center">
+            <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-red-900/20 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p class="text-red-400 font-medium">Error al cargar el historial</p>
+            <p class="text-gray-500 text-sm mt-1">${err.message}</p>
+          </div>`;
+      }
+    }
+  }
+
+  function renderHistory(container, movs, codigo) {
+    if (!movs || movs.length === 0) {
+      container.innerHTML = `
+        <div class="p-8 text-center">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-900 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <p class="text-gray-500 font-medium">Sin movimientos registrados.</p>
+          <p class="text-gray-600 text-sm mt-2">No hay historial disponible para este artículo.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="p-1">
+        <div class="flex items-center justify-between p-4 border-b border-gray-800">
+          <div>
+            <h3 class="text-lg font-semibold text-white">Historial de Movimientos</h3>
+            <p class="text-xs text-gray-500 mt-1">Artículo: ${codigo}</p>
+          </div>
+          <span class="text-xs text-gray-500 bg-black/40 px-3 py-1 rounded-full">${movs.length} registros</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="text-gray-500 bg-black/30">
+              <tr>
+                <th class="px-4 py-3 text-left font-medium">Fecha</th>
+                <th class="px-4 py-3 text-left font-medium">Comprobante</th>
+                <th class="px-4 py-3 text-right font-medium">Cantidad (unidades)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800/50">
+              ${movs.map(m => {
+                let fechaStr = m.fecha;
+                try {
+                  const d = new Date(m.fecha);
+                  if (!isNaN(d)) {
+                    fechaStr = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                  }
+                } catch {}
+                const isPositive = m.cantidad > 0;
+                return `
+                  <tr class="hover:bg-gray-900/30">
+                    <td class="px-4 py-3 text-gray-400 font-medium">${fechaStr}</td>
+                    <td class="px-4 py-3 text-gray-300 font-mono">${m.comprobante || 'Sin comprobante'}</td>
+                    <td class="px-4 py-3 text-right">
+                      <span class="inline-flex items-center ${isPositive ? 'text-green-400' : 'text-red-400'} font-bold">
+                        ${isPositive ? '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>' : '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>'}
+                        ${isPositive ? '+' : ''}${m.cantidad}
+                      </span>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  // ============================================================
+  // FILTRO CON DEBOUNCE
+  // ============================================================
+  function debounce(fn, delay) {
+    let timer = null;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  function performFilter() {
+    const term = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = rawData.filter(item =>
+      item.codigo.toString().toLowerCase().includes(term) ||
+      item.descripcion.toLowerCase().includes(term) ||
+      (item.deposito && item.deposito.toLowerCase().includes(term))
+    );
+    renderTable(filtered, false);
+  }
+
+  window.filterData = debounce(performFilter, 300);
+
+  // ============================================================
+  // CARGA PRINCIPAL DE DATOS
+  // ============================================================
+  async function loadData(forceRefresh = false) {
+    if (isLoading || isCooldown) return;
+
+    const loader = document.getElementById('loader');
+    const tableBody = document.getElementById('tableBody');
+    const emptyState = document.getElementById('emptyState');
+
+    isLoading = true;
+    updateButtonState('loading');
+    loader.classList.remove('hidden');
+    tableBody.innerHTML = '';
+    emptyState.classList.add('hidden');
+
+    try {
+      // 1) Intentar caché válida (si no se fuerza refresco)
+      if (!forceRefresh) {
+        const cached = getCache();
+        if (cached) {
+          rawData = cached;
+          renderTable(rawData, true);
+          isLoading = false;
+          updateButtonState('idle');
+          loader.classList.add('hidden');
+          return;
+        }
+      }
+
+      // 2) Fetch a la API
+      const url = `${API_BASE_URL}?t=${Date.now()}`;
+      console.log('🔍 URL de la API:', url);
+
+      const response = await fetch(url, {
+        mode: 'cors',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error(`La API no devolvió JSON. URL usada: ${url}`);
+      }
+
+      if (data && data.error) {
+        throw new Error(data.error);
+      }
+
+      const parsedData = Array.isArray(data) ? data : [];
+      rawData = parsedData;
+      renderTable(rawData, false);
+      setCache(parsedData);
+
+    } catch (err) {
+      console.error('Error en loadData:', err);
+
+      // Intentar usar caché expirada
+      const expiredCache = getCache(true);
+      if (expiredCache) {
+        rawData = expiredCache;
+        renderTable(rawData, false);
+        showWarning('Mostrando datos en caché (pueden estar desactualizados)');
+      } else {
+        showError(`Error: ${err.message}`);
+        document.getElementById('emptyState').classList.remove('hidden');
+      }
+    } finally {
+      loader.classList.add('hidden');
+      isLoading = false;
+
+      // Cooldown
+      if (cooldownTimer) clearTimeout(cooldownTimer);
+      isCooldown = true;
+      updateButtonState('cooldown');
+      cooldownTimer = setTimeout(() => {
+        isCooldown = false;
+        updateButtonState('idle');
+        cooldownTimer = null;
+      }, COOLDOWN);
+    }
+  }
+
+  // ============================================================
+  // INICIALIZACIÓN
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', function() {
+    refreshBtn = document.querySelector('.premium-btn');
+    if (refreshBtn) {
+      refreshBtn.onclick = function() { loadData(true); };
+      updateButtonState('idle');
+    }
+
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+    // Carga inicial (usa caché si es válida)
+    loadData(false);
+  });
+
+  // Exponer funciones globales
+  window.loadData = loadData;
+  window.filterData = window.filterData;
+  window.toggleDetail = toggleDetail;
+</script>
+</body>
+</html>
